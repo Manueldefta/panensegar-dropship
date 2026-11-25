@@ -5,6 +5,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
+use App\Http\Controllers\FarmerDashboardController;
 
 // Publik
 Route::get('/', [OrderController::class, 'index'])->name('catalog.index');
@@ -25,9 +26,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/orders/{order:order_number}', [OrderController::class, 'show'])->name('orders.show');
 });
 
+// Khusus Petani & Admin (RBAC)
 Route::middleware(['auth', 'role:farmer,admin'])->group(function () {
-    Route::get('/farmer/dashboard', function (Request $request) {
-        $user = $request->user();
-        return "Halo {$user->name} ({$user->role}) — Akses Dashboard Petani Terbuka!";
-    })->name('farmer.dashboard');
+    Route::get('/farmer/dashboard', [FarmerDashboardController::class, 'index'])->name('farmer.dashboard');
+    Route::patch('/farmer/orders/{order:order_number}/harvest', [FarmerDashboardController::class, 'markHarvested'])
+        ->name('farmer.orders.harvest');
 });
