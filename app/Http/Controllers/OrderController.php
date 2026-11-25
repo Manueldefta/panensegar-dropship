@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\CheckoutService;
+use App\Services\MidtransService;
 
 class OrderController extends Controller
 {
@@ -33,10 +34,19 @@ class OrderController extends Controller
         return redirect()->route('orders.show', $order->order_number);
     }
 
-    public function show(Order $order)
+    public function show(Order $order, MidtransService $midtransService)
     {
-        $order->load('items.product');
+        $order->load(['items.product', 'user']);
 
-        return view('order-success', compact('order'));
+        $paymentError = null;
+        if ($order->status === 'pending' && !$order->snap_token) {
+            try {
+                $midtransService->getOrCreateSnapToken($order);
+            } catch (\Throwable $e) {
+                $paymentError = $e->getMessage();
+            }
+        }
+
+        return view('order-success', compact('order', 'paymentError'));
     }
 }
