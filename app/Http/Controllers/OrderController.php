@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CheckoutRequest;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\User;
 use App\Services\CheckoutService;
 use App\Services\MidtransService;
+use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
@@ -22,11 +22,8 @@ class OrderController extends Controller
 
     public function store(CheckoutRequest $request, CheckoutService $checkoutService)
     {
-        // TODO: Ganti dengan auth()->user() setelah fitur Login selesai dibuat
-        $customer = User::where('role', 'customer')->firstOrFail();
-
         $order = $checkoutService->createOrder(
-            user: $customer,
+            user: $request->user(),
             requestedItems: $request->validated('items'),
             shippingAddress: $request->validated('shipping_address')
         );
@@ -34,8 +31,14 @@ class OrderController extends Controller
         return redirect()->route('orders.show', $order->order_number);
     }
 
-    public function show(Order $order, MidtransService $midtransService)
+    public function show(Request $request, Order $order, MidtransService $midtransService)
     {
+        // Anti-IDOR: hanya pemilik pesanan atau admin yang boleh melihat struk
+        $user = $request->user();
+        if ($order->user_id !== $user->id && !$user->isAdmin()) {
+            abort(403, 'Anda tidak berhak mengakses pesanan ini.');
+        }
+
         $order->load(['items.product', 'user']);
 
         $paymentError = null;

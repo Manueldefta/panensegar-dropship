@@ -7,6 +7,33 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
+    <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 text-sm">
+    @auth
+        <div>
+            <span class="font-semibold text-gray-900">{{ auth()->user()->name }}</span>
+            <span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-700 uppercase">
+                {{ auth()->user()->role }}
+            </span>
+        </div>
+        <div class="flex items-center gap-3">
+            @if (auth()->user()->isFarmer() || auth()->user()->isAdmin())
+                <a href="{{ route('farmer.dashboard') }}" class="text-green-700 font-medium hover:underline">
+                    Dashboard Petani
+                </a>
+            @endif
+            <form action="{{ route('logout') }}" method="POST">
+                @csrf
+                <button type="submit" class="text-red-600 hover:underline">Keluar</button>
+            </form>
+        </div>
+    @else
+        <span class="text-gray-500">Belum masuk</span>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('login') }}" class="text-green-700 font-medium hover:underline">Masuk</a>
+            <a href="{{ route('register') }}" class="bg-green-600 text-white px-3 py-1 rounded-lg text-xs font-semibold hover:bg-green-700">Daftar</a>
+        </div>
+    @endauth
+</div>
     <div class="max-w-xl mx-auto p-4 sm:p-6">
         <header class="mb-6">
             <h1 class="text-2xl font-bold text-green-700">PanenSegar PO Harian</h1>
