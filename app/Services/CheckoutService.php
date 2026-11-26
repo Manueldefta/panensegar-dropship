@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class CheckoutService
 {
+    private const MAX_PENDING_ORDERS = 2;
+
     /**
      * Aturan PO H-1:
      * Pesan sebelum jam 20.00 WIB -> dikirim besok.
@@ -43,7 +45,7 @@ class CheckoutService
     }
 
     /**
-     * Proses checkout aman dengan Database Transaction & Row Lock.
+     * Proses checkout aman dengan Database Transaction, Row Lock, dan Anti-Denial of Inventory.
      */
     public function createOrder(User $user, array $requestedItems, string $shippingAddress): Order
     {
@@ -59,13 +61,25 @@ class CheckoutService
         }
 
         $deliveryDate = $this->getDeliveryDate();
-
-        // Urutkan ID produk agar tidak terjadi deadlock saat 2 user checkout bersamaan
         $productIds = $filteredItems->keys()->sort()->values()->all();
 
         return DB::transaction(function () use ($user, $filteredItems, $productIds, $shippingAddress, $deliveryDate) {
-            // 2. Kunci baris produk selama transaksi berlangsung (anti race-condition)
+            // 2. Kunci baris user agar request paralel dari akun yang sama tidak bisa menembus batas pending
+            User::whereKey($user->id)->lockForUpdate()->first();
+
+            $activePendingCount = Order::where('user_id', $user->id)
+                ->where('status', 'pending')
+                ->count();
+
+            if ($activePendingCount >= self::MAX_PENDING_ORDERS) {
+                throw ValidationException::withMessages([
+                    'items' => "Kamu masih memiliki {$activePendingCount} pesanan yang belum dibayar. Selesaikan pembayaran terlebih dahulu sebelum membuat pesanan baru.",
+                ]);
+            }
+
+            // 3. Kunci baris produk secara berurutan di level SQL (anti race-condition & deadlock)
             $products = Product::whereIn('id', $productIds)
+                ->orderBy('id')
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
@@ -83,7 +97,7 @@ class CheckoutService
                     ]);
                 }
 
-                // 3. Cek sisa kuota panen harian
+                // 4. Cek sisa kuota panen harian
                 $alreadyBooked = (int) ($bookedMap[$product->id] ?? 0);
                 $remaining = $product->daily_quota - $alreadyBooked;
 
@@ -93,7 +107,7 @@ class CheckoutService
                     ]);
                 }
 
-                // 4. Server-side calculation & Price Snapshot
+                // 5. Server-side calculation & Price Snapshot
                 $lineSubtotal = $product->selling_price * $qty;
                 $subtotal += $lineSubtotal;
 
@@ -111,7 +125,7 @@ class CheckoutService
             $shippingFee = $subtotal >= 50000 ? 0 : 5000;
             $totalAmount = $subtotal + $shippingFee;
 
-            // 5. Simpan Order utama
+            // 6. Simpan Order utama
             $order = Order::create([
                 'order_number' => 'SYR-' . now('Asia/Jakarta')->format('Ymd') . '-' . strtoupper(Str::random(5)),
                 'user_id' => $user->id,
@@ -123,7 +137,7 @@ class CheckoutService
                 'status' => 'pending',
             ]);
 
-            // 6. Simpan rincian item beserta snapshot harganya
+            // 7. Simpan rincian item beserta snapshot harganya
             foreach ($preparedItems as $itemData) {
                 $order->items()->create($itemData);
             }

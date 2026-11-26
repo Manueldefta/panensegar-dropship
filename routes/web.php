@@ -1,11 +1,10 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\FarmerDashboardController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
-use App\Http\Controllers\FarmerDashboardController;
 
 // Publik
 Route::get('/', [OrderController::class, 'index'])->name('catalog.index');
@@ -14,15 +13,17 @@ Route::post('/webhooks/midtrans', [PaymentWebhookController::class, 'handle'])->
 // Khusus yang belum login
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
 });
 
 // Wajib login
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-    Route::post('/checkout', [OrderController::class, 'store'])->name('checkout.store');
+    Route::post('/checkout', [OrderController::class, 'store'])
+        ->middleware('throttle:checkout')
+        ->name('checkout.store');
     Route::get('/orders/{order:order_number}', [OrderController::class, 'show'])->name('orders.show');
 });
 

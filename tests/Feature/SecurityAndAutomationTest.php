@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
+use App\Models\Product;
 
 class SecurityAndAutomationTest extends TestCase
 {
@@ -111,5 +112,42 @@ class SecurityAndAutomationTest extends TestCase
         $this->assertEquals('expired', $oldPending->fresh()->status);
         $this->assertEquals('pending', $freshPending->fresh()->status);
         $this->assertEquals('paid', $oldPaid->fresh()->status);
+    }
+
+    public function test_login_is_rate_limited_after_too_many_attempts(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->post('/login', [
+                'email' => 'bruteforce@sayur.test',
+                'password' => 'salah-terus',
+            ])->assertSessionHasErrors();
+        }
+
+        $this->post('/login', [
+            'email' => 'bruteforce@sayur.test',
+            'password' => 'salah-terus',
+        ])->assertStatus(429);
+    }
+
+    public function test_customer_cannot_exceed_max_active_pending_orders(): void
+    {
+        $this->seed();
+
+        $customer = User::where('email', 'pembeli@sayur.test')->firstOrFail();
+        $product = Product::where('is_available', true)->firstOrFail();
+
+        // Buat 2 pesanan pending aktif (batas maksimal)
+        for ($i = 0; $i < 2; $i++) {
+            $this->actingAs($customer)->post(route('checkout.store'), [
+                'items' => [$product->id => 1],
+                'shipping_address' => 'Jl. Merdeka No. 10, Salatiga',
+            ])->assertRedirect();
+        }
+
+        // Pesanan pending ke-3 wajib ditolak (Anti-Denial of Inventory)
+        $this->actingAs($customer)->post(route('checkout.store'), [
+            'items' => [$product->id => 1],
+            'shipping_address' => 'Jl. Merdeka No. 10, Salatiga',
+        ])->assertSessionHasErrors('items');
     }
 }

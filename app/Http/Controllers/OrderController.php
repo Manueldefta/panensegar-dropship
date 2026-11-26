@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Services\CheckoutService;
 use App\Services\MidtransService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -46,7 +47,12 @@ class OrderController extends Controller
             try {
                 $midtransService->getOrCreateSnapToken($order);
             } catch (\Throwable $e) {
-                $paymentError = $e->getMessage();
+                Log::error('Gagal membuat Midtrans Snap Token', [
+                    'order_number' => $order->order_number,
+                    'message' => $e->getMessage(),
+                ]);
+
+                $paymentError = 'Layanan pembayaran sedang mengalami gangguan sementara. Silakan muat ulang halaman beberapa saat lagi.';
             }
         }
 
