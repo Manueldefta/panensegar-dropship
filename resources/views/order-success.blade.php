@@ -40,9 +40,14 @@
                 </div>
             </a>
 
-            <a href="{{ route('catalog.index') }}" class="text-xs sm:text-sm font-semibold text-stone-600 hover:text-emerald-900 transition">
-                ← Kembali ke Katalog
-            </a>
+            <div class="flex items-center gap-4 text-xs sm:text-sm font-semibold">
+                <a href="{{ route('orders.mine') }}" class="text-emerald-800 hover:text-orange-600 transition">
+                    Pesanan Saya
+                </a>
+                <a href="{{ route('catalog.index') }}" class="text-stone-600 hover:text-emerald-900 transition">
+                    ← Katalog
+                </a>
+            </div>
         </div>
     </nav>
 

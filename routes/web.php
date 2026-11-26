@@ -24,6 +24,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/checkout', [OrderController::class, 'store'])
         ->middleware('throttle:checkout')
         ->name('checkout.store');
+    Route::get('/my-orders', [OrderController::class, 'myOrders'])->name('orders.mine');
     Route::get('/orders/{order:order_number}', [OrderController::class, 'show'])->name('orders.show');
 });
 

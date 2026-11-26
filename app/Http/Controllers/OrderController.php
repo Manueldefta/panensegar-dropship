@@ -32,6 +32,28 @@ class OrderController extends Controller
         return redirect()->route('orders.show', $order->order_number);
     }
 
+    public function myOrders(Request $request)
+    {
+        $status = $request->query('status');
+        $allowedStatuses = ['pending', 'paid', 'harvested', 'delivered', 'expired', 'cancelled', 'need_refund'];
+
+        $query = Order::with(['items.product'])
+            ->where('user_id', $request->user()->id)
+            ->latest();
+
+        if ($status && in_array($status, $allowedStatuses, true)) {
+            $query->where('status', $status);
+        }
+
+        $orders = $query->paginate(10)->withQueryString();
+
+        $pendingCount = Order::where('user_id', $request->user()->id)
+            ->where('status', 'pending')
+            ->count();
+
+        return view('my-orders', compact('orders', 'status', 'pendingCount'));
+    }
+
     public function show(Request $request, Order $order, MidtransService $midtransService)
     {
         // Anti-IDOR: hanya pemilik pesanan atau admin yang boleh melihat struk

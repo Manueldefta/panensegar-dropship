@@ -49,6 +49,9 @@
                             {{ auth()->user()->role }}
                         </span>
                     </div>
+                    <a href="{{ route('orders.mine') }}" class="px-3 py-1.5 rounded-lg bg-stone-100 text-stone-700 hover:bg-emerald-50 hover:text-emerald-900 font-semibold text-xs transition">
+                            Pesanan Saya
+                    </a>
                     @if (auth()->user()->isFarmer() || auth()->user()->isAdmin())
                         <a href="{{ route('farmer.dashboard') }}" class="px-3 py-1.5 rounded-lg bg-emerald-900 text-white font-semibold text-xs hover:bg-emerald-800 transition">
                             Dashboard Petani

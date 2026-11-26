@@ -150,4 +150,42 @@ class SecurityAndAutomationTest extends TestCase
             'shipping_address' => 'Jl. Merdeka No. 10, Salatiga',
         ])->assertSessionHasErrors('items');
     }
+
+    public function test_my_orders_only_shows_authenticated_users_own_orders(): void
+    {
+        $this->seed();
+
+        $customer = User::where('email', 'pembeli@sayur.test')->firstOrFail();
+        $otherUser = User::where('email', 'petani@sayur.test')->firstOrFail();
+
+        $ownOrder = Order::create([
+            'order_number' => 'SYR-TEST-OWN01',
+            'user_id' => $customer->id,
+            'delivery_date' => now()->addDay()->toDateString(),
+            'shipping_address' => 'Jl. Pemilik Asli No. 1',
+            'subtotal' => 25000,
+            'shipping_fee' => 5000,
+            'total_amount' => 30000,
+            'status' => 'pending',
+        ]);
+
+        $otherOrder = Order::create([
+            'order_number' => 'SYR-TEST-OTH02',
+            'user_id' => $otherUser->id,
+            'delivery_date' => now()->addDay()->toDateString(),
+            'shipping_address' => 'Jl. Orang Lain No. 2',
+            'subtotal' => 50000,
+            'shipping_fee' => 0,
+            'total_amount' => 50000,
+            'status' => 'paid',
+        ]);
+
+        $this->get(route('orders.mine'))->assertRedirect(route('login'));
+
+        $this->actingAs($customer)
+            ->get(route('orders.mine'))
+            ->assertStatus(200)
+            ->assertSee($ownOrder->order_number)
+            ->assertDontSee($otherOrder->order_number);
+    }
 }
